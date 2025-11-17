@@ -17,6 +17,7 @@ const mailer_module_1 = require("./mailer/mailer.module");
 const users_module_1 = require("./users/users.module");
 const mfa_module_1 = require("./mfa/mfa.module");
 const sessions_module_1 = require("./sessions/sessions.module");
+const health_module_1 = require("./health/health.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -38,6 +39,7 @@ exports.AppModule = AppModule = __decorate([
             mailer_module_1.MailerModule,
             mfa_module_1.MfaModule,
             sessions_module_1.SessionsModule,
+            health_module_1.HealthModule,
         ],
     })
 ], AppModule);
