@@ -8,6 +8,7 @@ import { MailerModule } from './mailer/mailer.module';
 import { UsersModule } from './users/users.module';
 import { MfaModule } from './mfa/mfa.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { HealthModule } from './health/health.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -25,6 +26,7 @@ import { SessionsModule } from './sessions/sessions.module';
     MailerModule,
     MfaModule,
     SessionsModule,
+    HealthModule,
     // We'll add PrismaModule, AuthModule, UsersModule, SessionsModule, MailerModule soon
   ],
 })
