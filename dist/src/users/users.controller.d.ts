@@ -7,6 +7,7 @@ export declare class UsersController {
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
     addRole(id: string, body: {
         role: string;
@@ -15,6 +16,7 @@ export declare class UsersController {
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
     removeRole(id: string, body: {
         role: string;
@@ -23,5 +25,6 @@ export declare class UsersController {
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
 }

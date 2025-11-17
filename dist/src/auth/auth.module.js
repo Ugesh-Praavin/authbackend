@@ -12,13 +12,15 @@ const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const sessions_module_1 = require("../sessions/sessions.module");
 const users_module_1 = require("../users/users.module");
+const google_strategy_1 = require("./strategies/google.strategy");
+const github_strategy_1 = require("./strategies/github.strategy");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [sessions_module_1.SessionsModule, users_module_1.UsersModule],
-        providers: [auth_service_1.AuthService],
+        providers: [auth_service_1.AuthService, google_strategy_1.GoogleStrategy, github_strategy_1.GithubStrategy],
         controllers: [auth_controller_1.AuthController],
     })
 ], AuthModule);

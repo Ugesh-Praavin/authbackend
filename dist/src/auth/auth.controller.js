@@ -25,14 +25,22 @@ const mfa_verify_dto_1 = require("./dto/mfa-verify.dto");
 const session_guard_1 = require("../common/session.guard");
 const current_user_decorator_1 = require("../common/current-user.decorator");
 const mfa_recovery_dto_1 = require("./dto/mfa-recovery.dto");
+const passport_1 = require("@nestjs/passport");
+const token_util_1 = require("../common/token.util");
+const prisma_service_1 = require("../prisma/prisma.service");
+const redis_service_1 = require("../redis/redis.service");
 let AuthController = class AuthController {
     auth;
     sessions;
     mfa;
-    constructor(auth, sessions, mfa) {
+    prisma;
+    redis;
+    constructor(auth, sessions, mfa, prisma, redis) {
         this.auth = auth;
         this.sessions = sessions;
         this.mfa = mfa;
+        this.prisma = prisma;
+        this.redis = redis;
     }
     register(dto) {
         return this.auth.register(dto);
@@ -53,7 +61,12 @@ let AuthController = class AuthController {
         const raw = req.cookies?.sid;
         const me = await this.sessions.userFromRaw(raw);
         await this.sessions.deleteAllForUser(me.id);
-        res.clearCookie('sid', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+        res.clearCookie('sid', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+        });
         return { ok: true };
     }
     async login(dto, req, res) {
@@ -114,7 +127,10 @@ let AuthController = class AuthController {
         await this.mfa.verifyCodeForUser(userId, dto.code);
         const { raw } = await this.sessions.createSession(userId, req.ip, req.headers['user-agent']);
         res.cookie('sid', raw, {
-            httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
             maxAge: Number(process.env.SESSION_TTL_DAYS || 30) * 24 * 60 * 60 * 1000,
         });
         return { ok: true };
@@ -146,6 +162,94 @@ let AuthController = class AuthController {
             throw new common_1.BadRequestException('Invalid recovery code');
         await this.mfa.disable(user.id);
         return { ok: true };
+    }
+    async oauthStart(provider, res) {
+        const state = (0, token_util_1.newOpaqueToken)('ost');
+        await this.redis.c.set(`oauth:state:${state}`, provider, { EX: 300 });
+        let url = '';
+        if (provider === 'google') {
+            const params = new URLSearchParams({
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                redirect_uri: `${process.env.OAUTH_REDIRECT_BASE}/google/callback`,
+                response_type: 'code',
+                scope: 'openid email profile',
+                access_type: 'offline',
+                state,
+            });
+            url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+        }
+        else if (provider === 'github') {
+            const params = new URLSearchParams({
+                client_id: process.env.GITHUB_CLIENT_ID,
+                redirect_uri: `${process.env.OAUTH_REDIRECT_BASE}/github/callback`,
+                scope: 'user:email',
+                state,
+            });
+            url = `https://github.com/login/oauth/authorize?${params.toString()}`;
+        }
+        else {
+            return res.status(400).send('Unknown provider');
+        }
+        return res.redirect(302, url);
+    }
+    async googleCallback(req, res) {
+        const payload = req.user;
+        return this.handleOAuthCallback(payload, res, req);
+    }
+    async githubCallback(req, res) {
+        const payload = req.user;
+        return this.handleOAuthCallback(payload, res, req);
+    }
+    async handleOAuthCallback(payload, res, req) {
+        const { profile, accessToken, refreshToken, state } = payload;
+        const stored = await this.redis.c.get(`oauth:state:${state}`);
+        if (!stored)
+            return res.status(400).send('Invalid state');
+        const provider = profile.provider ||
+            profile._json?.provider ||
+            (req.path.includes('google') ? 'google' : 'github');
+        const providerId = profile.id;
+        const email = (() => {
+            if (profile.emails && profile.emails.length)
+                return profile.emails[0].value;
+            if (profile._json?.email)
+                return profile._json.email;
+            return null;
+        })();
+        const identity = await this.prisma.identity
+            .findUnique({ where: { provider_providerId: { provider, providerId } } })
+            .catch(() => null);
+        let user;
+        if (identity) {
+            user = await this.prisma.user.findUnique({
+                where: { id: identity.userId },
+            });
+        }
+        else {
+            if (email) {
+                user = await this.prisma.user.findUnique({ where: { email } });
+            }
+            if (!user) {
+                user = await this.prisma.user.create({
+                    data: {
+                        email: email ?? `noemail+${provider}-${providerId}@local`,
+                        emailVerified: email ? true : false,
+                    },
+                });
+            }
+            await this.prisma.identity.create({
+                data: { provider, providerId, providerRaw: profile, userId: user.id },
+            });
+        }
+        const { raw } = await this.sessions.createSession(user.id, req.ip, req.headers['user-agent']);
+        res.cookie('sid', raw, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: Number(process.env.SESSION_TTL_DAYS || 30) * 24 * 60 * 60 * 1000,
+        });
+        return res.redirect(302, `${process.env.FRONTEND_URL}?oauth=success`);
     }
 };
 exports.AuthController = AuthController;
@@ -245,10 +349,38 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "useRecoveryWhileLogged", null);
+__decorate([
+    (0, common_1.Get)('oauth/:provider/start'),
+    __param(0, (0, common_1.Param)('provider')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "oauthStart", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('google')),
+    (0, common_1.Get)('oauth/google/callback'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleCallback", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('github')),
+    (0, common_1.Get)('oauth/github/callback'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "githubCallback", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
         sessions_service_1.SessionsService,
-        mfa_service_1.MfaService])
+        mfa_service_1.MfaService,
+        prisma_service_1.PrismaService,
+        redis_service_1.RedisService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

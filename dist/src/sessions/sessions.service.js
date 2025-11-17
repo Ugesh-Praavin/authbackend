@@ -37,7 +37,9 @@ let SessionsService = class SessionsService {
             },
             select: { id: true, userId: true, expiresAt: true, sessionHash: true },
         });
-        await this.redis.c.set(this.redisKey(raw), session.id, { EX: days * 24 * 60 * 60 });
+        await this.redis.c.set(this.redisKey(raw), session.id, {
+            EX: days * 24 * 60 * 60,
+        });
         return { raw, session };
     }
     async rotate(raw, ip, ua) {
@@ -67,7 +69,9 @@ let SessionsService = class SessionsService {
         if (!session)
             throw new common_1.UnauthorizedException();
         if (session.expiresAt < new Date()) {
-            await this.prisma.session.delete({ where: { id: session.id } }).catch(() => { });
+            await this.prisma.session
+                .delete({ where: { id: session.id } })
+                .catch(() => { });
             throw new common_1.UnauthorizedException();
         }
         const ok = await (0, token_util_1.verifyToken)(raw, session.sessionHash);
@@ -78,13 +82,17 @@ let SessionsService = class SessionsService {
     async deleteByRaw(raw) {
         const cachedId = await this.redis.c.get(this.redisKey(raw));
         if (cachedId) {
-            await this.prisma.session.delete({ where: { id: cachedId } }).catch(() => { });
+            await this.prisma.session
+                .delete({ where: { id: cachedId } })
+                .catch(() => { });
             await this.redis.c.del(this.redisKey(raw));
             return;
         }
         const found = await this.lookupByRawHash(raw);
         if (found) {
-            await this.prisma.session.delete({ where: { id: found.id } }).catch(() => { });
+            await this.prisma.session
+                .delete({ where: { id: found.id } })
+                .catch(() => { });
         }
     }
     async userFromRaw(raw) {

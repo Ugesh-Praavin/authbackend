@@ -7,17 +7,20 @@ export declare class UsersService {
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
     addRole(userId: string, roleName: string): Promise<{
         roles: string[];
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
     removeRole(userId: string, roleName: string): Promise<{
         roles: string[];
         id: string;
         email: string;
         emailVerified: boolean;
+        mfaEnabled: boolean;
     }>;
 }

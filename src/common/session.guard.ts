@@ -6,26 +6,34 @@ import {
 } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
 import { UsersService } from '../users/users.service';
+import { Request } from 'express';
 
 @Injectable()
 export class SessionGuard implements CanActivate {
   constructor(
-    private sessions: SessionsService,
-    private users: UsersService,
+    private readonly sessions: SessionsService,
+    private readonly users: UsersService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest();
-    const raw = req.cookies?.sid;
+    const req = context.switchToHttp().getRequest<Request>();
 
-    if (!raw) throw new UnauthorizedException();
+    const sid = req.cookies?.sid;
+    if (!sid) throw new UnauthorizedException();
 
-    // Validate session + load user
-    const sessionUser = await this.sessions.userFromRaw(raw);
+    // 1 — validate session
+    const sessionUser = await this.sessions.userFromRaw(sid);
+
+    // 2 — load full user
     const fullUser = await this.users.findById(sessionUser.id);
+    if (!fullUser) throw new UnauthorizedException();
 
+    // 3 — attach typed user to Express request
     req.user = {
-      ...fullUser,
+      id: fullUser.id,
+      email: fullUser.email,
+      emailVerified: fullUser.emailVerified,
+      mfaEnabled: fullUser.mfaEnabled,
       roles: fullUser.roles,
     };
 

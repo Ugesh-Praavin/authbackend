@@ -8,11 +8,15 @@ import { ResetDto } from './dto/reset.dto';
 import { MfaService } from '../mfa/mfa.service';
 import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { MfaRecoverDto } from './dto/mfa-recovery.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 export declare class AuthController {
     private auth;
     private sessions;
     private mfa;
-    constructor(auth: AuthService, sessions: SessionsService, mfa: MfaService);
+    private prisma;
+    private redis;
+    constructor(auth: AuthService, sessions: SessionsService, mfa: MfaService, prisma: PrismaService, redis: RedisService);
     register(dto: RegisterDto): Promise<{
         id: string;
         email: string;
@@ -66,4 +70,8 @@ export declare class AuthController {
     }): Promise<{
         ok: boolean;
     }>;
+    oauthStart(provider: string, res: Response): Promise<void | Response<any, Record<string, any>>>;
+    googleCallback(req: Request, res: Response): Promise<void | Response<any, Record<string, any>>>;
+    githubCallback(req: Request, res: Response): Promise<void | Response<any, Record<string, any>>>;
+    private handleOAuthCallback;
 }

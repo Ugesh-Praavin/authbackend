@@ -1,5 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { generateRecoveryCodes, hashRecoveryCode, verifyRecoveryCode } from '../common/recovery.util';
+import {
+  generateRecoveryCodes,
+  hashRecoveryCode,
+  verifyRecoveryCode,
+} from '../common/recovery.util';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,7 +15,10 @@ const CHALLENGE_TTL = Number(process.env.MFA_CHALLENGE_TTL_SEC || 300);
 
 @Injectable()
 export class MfaService {
-  constructor(private prisma: PrismaService, private redis: RedisService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   // 1) Generate a TOTP secret and otpauth URL + QR (data URL)
   async startEnroll(userId: string) {
@@ -38,7 +45,10 @@ export class MfaService {
       update: { secretEnc, createdAt: new Date() },
       create: { userId, secretEnc },
     });
-    await this.prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaEnabled: true },
+    });
     return { ok: true };
   }
 
@@ -55,7 +65,10 @@ export class MfaService {
   // disable MFA
   async disable(userId: string) {
     await this.prisma.totpMfa.deleteMany({ where: { userId } }).catch(() => {});
-    await this.prisma.user.update({ where: { id: userId }, data: { mfaEnabled: false } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaEnabled: false },
+    });
     return { ok: true };
   }
 
@@ -81,9 +94,11 @@ export class MfaService {
 
   async generateRecoveryCodes(userId: string, count = 10) {
     // remove existing unused codes for safety (optional)
-    await this.prisma.recoveryCode.deleteMany({ where: { userId } }).catch(() => {});
+    await this.prisma.recoveryCode
+      .deleteMany({ where: { userId } })
+      .catch(() => {});
     const codes = generateRecoveryCodes(count);
-    const hashed = await Promise.all(codes.map(c => hashRecoveryCode(c)));
+    const hashed = await Promise.all(codes.map((c) => hashRecoveryCode(c)));
 
     // store hashed codes
     const rows = hashed.map((h) => ({ userId, codeHash: h }));
@@ -93,11 +108,11 @@ export class MfaService {
     // return plaintext codes to show to user (must be shown only once)
     return codes;
   }
-   /**
+  /**
    * Verify and consume a recovery code for a user.
    * Returns true on success and marks the code used.
    */
-   async consumeRecoveryCodeForUser(userId: string, code: string) {
+  async consumeRecoveryCodeForUser(userId: string, code: string) {
     // fetch unused codes (limit to reasonable number)
     const candidates = await this.prisma.recoveryCode.findMany({
       where: { userId, usedAt: null },
@@ -110,7 +125,10 @@ export class MfaService {
         const ok = await verifyRecoveryCode(code, c.codeHash);
         if (ok) {
           // mark used
-          await this.prisma.recoveryCode.update({ where: { id: c.id }, data: { usedAt: new Date() } });
+          await this.prisma.recoveryCode.update({
+            where: { id: c.id },
+            data: { usedAt: new Date() },
+          });
           // optionally revoke existing MFA enrollment? keep mfaEnabled true but allow login
           return true;
         }

@@ -5,5 +5,5 @@ export class MfaRecoverDto {
   mfaToken: string;
 
   @IsString()
-  code: string;  // e.g., "C3E0-9B29-2A69"
+  code: string; // e.g., "C3E0-9B29-2A69"
 }

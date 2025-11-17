@@ -20,14 +20,22 @@ let UsersService = class UsersService {
     async findById(id) {
         const user = await this.prisma.user.findUnique({
             where: { id },
-            select: { id: true, email: true, emailVerified: true, roles: { select: { role: true } } },
+            select: {
+                id: true,
+                email: true,
+                mfaEnabled: true,
+                emailVerified: true,
+                roles: { select: { role: true } },
+            },
         });
         if (!user)
             throw new common_1.NotFoundException('User not found');
-        return { ...user, roles: user.roles.map(r => r.role.name) };
+        return { ...user, roles: user.roles.map((r) => r.role.name) };
     }
     async addRole(userId, roleName) {
-        const role = await this.prisma.role.findUnique({ where: { name: roleName } });
+        const role = await this.prisma.role.findUnique({
+            where: { name: roleName },
+        });
         if (!role)
             throw new common_1.NotFoundException('Role not found');
         await this.prisma.userRole.upsert({
@@ -38,10 +46,14 @@ let UsersService = class UsersService {
         return this.findById(userId);
     }
     async removeRole(userId, roleName) {
-        const role = await this.prisma.role.findUnique({ where: { name: roleName } });
+        const role = await this.prisma.role.findUnique({
+            where: { name: roleName },
+        });
         if (!role)
             throw new common_1.NotFoundException('Role not found');
-        await this.prisma.userRole.delete({ where: { userId_roleId: { userId, roleId: role.id } } }).catch(() => { });
+        await this.prisma.userRole
+            .delete({ where: { userId_roleId: { userId, roleId: role.id } } })
+            .catch(() => { });
         return this.findById(userId);
     }
 };

@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:2.8
+    container_name: uauth-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+  auth:
+    image: uauth:local # later replace with your registry image
+    container_name: uauth-backend
+    restart: always
+    env_file:
+      - .env.production
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16
+    container_name: uauth-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: uauth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: uauth-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:

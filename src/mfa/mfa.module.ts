@@ -10,7 +10,7 @@ import { MfaController } from './mfa.controller';
 @Module({
   imports: [PrismaModule, RedisModule, SessionsModule, UsersModule],
   providers: [MfaService],
-  controllers:[MfaController],
+  controllers: [MfaController],
   exports: [MfaService],
 })
 export class MfaModule {}

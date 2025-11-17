@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { MfaService } from './mfa.service';
 import { SessionGuard } from '../common/session.guard';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -17,7 +26,10 @@ export class MfaController {
   // finish enroll — user supplies secret (from start) and OTP code to confirm
   @UseGuards(SessionGuard)
   @Post('enroll/finish')
-  async finish(@CurrentUser() user: any, @Body() body: { secret: string; code: string }) {
+  async finish(
+    @CurrentUser() user: any,
+    @Body() body: { secret: string; code: string },
+  ) {
     return this.mfa.finishEnroll(user.id, body.secret, body.code);
   }
 
@@ -31,7 +43,10 @@ export class MfaController {
   // Generate / rotate recovery codes (show plaintext once)
   @UseGuards(SessionGuard)
   @Post('recovery/generate')
-  async generateRecovery(@CurrentUser() user: any, @Body() body: { count?: number }) {
+  async generateRecovery(
+    @CurrentUser() user: any,
+    @Body() body: { count?: number },
+  ) {
     const count = body?.count ?? 10;
     const codes = await this.mfa.generateRecoveryCodes(user.id, count);
     // You MUST display these codes once to the user and NOT store them on front-end logs.

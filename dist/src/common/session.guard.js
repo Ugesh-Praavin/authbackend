@@ -22,13 +22,18 @@ let SessionGuard = class SessionGuard {
     }
     async canActivate(context) {
         const req = context.switchToHttp().getRequest();
-        const raw = req.cookies?.sid;
-        if (!raw)
+        const sid = req.cookies?.sid;
+        if (!sid)
             throw new common_1.UnauthorizedException();
-        const sessionUser = await this.sessions.userFromRaw(raw);
+        const sessionUser = await this.sessions.userFromRaw(sid);
         const fullUser = await this.users.findById(sessionUser.id);
+        if (!fullUser)
+            throw new common_1.UnauthorizedException();
         req.user = {
-            ...fullUser,
+            id: fullUser.id,
+            email: fullUser.email,
+            emailVerified: fullUser.emailVerified,
+            mfaEnabled: fullUser.mfaEnabled,
             roles: fullUser.roles,
         };
         return true;

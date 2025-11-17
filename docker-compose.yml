@@ -3,6 +3,11 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d uauth"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
     container_name: uauth-postgres
     restart: always
     environment:
@@ -20,3 +25,22 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  backend:
+    container_name: uauth-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/uauth
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "4000:4000"

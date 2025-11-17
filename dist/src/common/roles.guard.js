@@ -28,7 +28,7 @@ let RolesGuard = class RolesGuard {
         const req = ctx.switchToHttp().getRequest();
         const user = req.user;
         const roles = user?.roles ?? [];
-        const ok = required.some(r => roles.includes(r));
+        const ok = required.some((r) => roles.includes(r));
         if (!ok)
             throw new common_1.ForbiddenException('Insufficient role');
         return true;

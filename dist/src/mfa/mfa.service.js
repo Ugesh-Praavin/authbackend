@@ -49,7 +49,10 @@ let MfaService = class MfaService {
             update: { secretEnc, createdAt: new Date() },
             create: { userId, secretEnc },
         });
-        await this.prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } });
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { mfaEnabled: true },
+        });
         return { ok: true };
     }
     async verifyCodeForUser(userId, code) {
@@ -64,7 +67,10 @@ let MfaService = class MfaService {
     }
     async disable(userId) {
         await this.prisma.totpMfa.deleteMany({ where: { userId } }).catch(() => { });
-        await this.prisma.user.update({ where: { id: userId }, data: { mfaEnabled: false } });
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { mfaEnabled: false },
+        });
         return { ok: true };
     }
     async createChallenge(userId) {
@@ -85,9 +91,11 @@ let MfaService = class MfaService {
         return `mfa:challenge:${token}`;
     }
     async generateRecoveryCodes(userId, count = 10) {
-        await this.prisma.recoveryCode.deleteMany({ where: { userId } }).catch(() => { });
+        await this.prisma.recoveryCode
+            .deleteMany({ where: { userId } })
+            .catch(() => { });
         const codes = (0, recovery_util_1.generateRecoveryCodes)(count);
-        const hashed = await Promise.all(codes.map(c => (0, recovery_util_1.hashRecoveryCode)(c)));
+        const hashed = await Promise.all(codes.map((c) => (0, recovery_util_1.hashRecoveryCode)(c)));
         const rows = hashed.map((h) => ({ userId, codeHash: h }));
         await this.prisma.recoveryCode.createMany({ data: rows });
         return codes;
@@ -102,7 +110,10 @@ let MfaService = class MfaService {
             try {
                 const ok = await (0, recovery_util_1.verifyRecoveryCode)(code, c.codeHash);
                 if (ok) {
-                    await this.prisma.recoveryCode.update({ where: { id: c.id }, data: { usedAt: new Date() } });
+                    await this.prisma.recoveryCode.update({
+                        where: { id: c.id },
+                        data: { usedAt: new Date() },
+                    });
                     return true;
                 }
             }
@@ -118,6 +129,7 @@ let MfaService = class MfaService {
 exports.MfaService = MfaService;
 exports.MfaService = MfaService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService, redis_service_1.RedisService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        redis_service_1.RedisService])
 ], MfaService);
 //# sourceMappingURL=mfa.service.js.map

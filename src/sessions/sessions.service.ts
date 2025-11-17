@@ -28,15 +28,21 @@ export class SessionsService {
       select: { id: true, userId: true, expiresAt: true, sessionHash: true },
     });
 
-    await this.redis.c.set(this.redisKey(raw), session.id, { EX: days * 24 * 60 * 60 });
+    await this.redis.c.set(this.redisKey(raw), session.id, {
+      EX: days * 24 * 60 * 60,
+    });
     return { raw, session };
   }
 
-  async rotate(raw: string | undefined, ip?: string | null, ua?: string | null) {
+  async rotate(
+    raw: string | undefined,
+    ip?: string | null,
+    ua?: string | null,
+  ) {
     if (!raw) throw new UnauthorizedException();
     const user = await this.userFromRaw(raw);
     await this.deleteByRaw(raw);
-    return this.createSession(user!.id, ip, ua);
+    return this.createSession(user.id, ip, ua);
   }
 
   async deleteAllForUser(userId: string) {
@@ -48,9 +54,12 @@ export class SessionsService {
     if (!raw) throw new UnauthorizedException();
 
     const cachedId = await this.redis.c.get(this.redisKey(raw));
-    let session:
-      | { id: string; userId: string; sessionHash: string; expiresAt: Date }
-      | null = null;
+    let session: {
+      id: string;
+      userId: string;
+      sessionHash: string;
+      expiresAt: Date;
+    } | null = null;
 
     if (cachedId) {
       session = await this.prisma.session.findUnique({
@@ -64,7 +73,9 @@ export class SessionsService {
     if (!session) throw new UnauthorizedException();
 
     if (session.expiresAt < new Date()) {
-      await this.prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+      await this.prisma.session
+        .delete({ where: { id: session.id } })
+        .catch(() => {});
       throw new UnauthorizedException();
     }
 
@@ -77,13 +88,17 @@ export class SessionsService {
   async deleteByRaw(raw: string) {
     const cachedId = await this.redis.c.get(this.redisKey(raw));
     if (cachedId) {
-      await this.prisma.session.delete({ where: { id: cachedId } }).catch(() => {});
+      await this.prisma.session
+        .delete({ where: { id: cachedId } })
+        .catch(() => {});
       await this.redis.c.del(this.redisKey(raw));
       return;
     }
     const found = await this.lookupByRawHash(raw);
     if (found) {
-      await this.prisma.session.delete({ where: { id: found.id } }).catch(() => {});
+      await this.prisma.session
+        .delete({ where: { id: found.id } })
+        .catch(() => {});
     }
   }
 
@@ -102,7 +117,10 @@ export class SessionsService {
   }
 
   private async lookupByRawHash(raw: string): Promise<{
-    id: string; userId: string; sessionHash: string; expiresAt: Date;
+    id: string;
+    userId: string;
+    sessionHash: string;
+    expiresAt: Date;
   } | null> {
     // Not implemented — we rely on Redis mapping. Return null for fallback.
     return null;

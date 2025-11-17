@@ -4,7 +4,7 @@ import { UsersController } from '../users/users.controller';
 import { SessionsModule } from '../sessions/sessions.module';
 
 @Module({
-    imports: [SessionsModule],
+  imports: [SessionsModule],
   providers: [UsersService],
   controllers: [UsersController],
   exports: [UsersService],
