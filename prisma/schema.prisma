@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RecoveryCode {
+  id        String   @id @default(uuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  passwordHash  String?
+  mfaEnabled    Boolean  @default(false)
+  profile       Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+  totp          TotpMfa?
+  magicLinks    MagicLink[] // <-- REQUIRED
+  roles         UserRole[] // for RBAC
+  recoveryCodes RecoveryCode[]
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  sessionHash String
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  meta        Json     @default("{}")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@unique([sessionHash])
+}
+
+model MagicLink {
+  id        String    @id @default(uuid())
+  type      String
+  tokenHash String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+}
+
+model TotpMfa {
+  userId    String   @id
+  secretEnc String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Role {
+  id    Int        @id @default(autoincrement())
+  name  String     @unique
+  users UserRole[]
+}
+
+model UserRole {
+  userId String
+  roleId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
